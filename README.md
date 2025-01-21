@@ -17,13 +17,24 @@
    - 종료 시간 이후 기기 상태를 "미사용 중"으로 업데이트.
 
 파일 및 역할 설명
-Screens - 각각의 화면에 해당하며, MaterialPageRoute로 네비게이션.
+Screens
 
-Components - 대시보드와 기기 상태 화면에서 재사용할 수 있는 UI 컴포넌트
-팝업, 타이머 등 공통 요소 정의.
-Models - Supabase 데이터베이스 구조를 반영한 데이터 모델.
+- 각각의 화면에 해당하며, MaterialPageRoute로 네비게이션.
 
-Services - QR 스캔, 기기 상태 업데이트, 알림 등 기능 처리.
-Supabase API와 연동.
+Components
 
-Providers - 전역 상태 관리를 통해 데이터 흐름 제어.
+- 대시보드와 기기 상태 화면에서 재사용할 수 있는 UI 컴포넌트
+- 팝업, 타이머 등 공통 요소 정의.
+
+Models
+
+- Supabase 데이터베이스 구조를 반영한 데이터 모델.
+
+Services
+
+- QR 스캔, 기기 상태 업데이트, 알림 등 기능 처리.
+- Supabase API와 연동.
+
+Providers
+
+- 전역 상태 관리를 통해 데이터 흐름 제어.
