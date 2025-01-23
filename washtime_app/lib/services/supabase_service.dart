@@ -28,14 +28,15 @@ class SupabaseService {
     }
   }
 
-  /// 특정 기기 상태 업데이트
+  /// 기기 상태 업데이트
   Future<void> updateDeviceStatus(String deviceId, DeviceStatus status) async {
     try {
       final response = await supabase
           .from('devices')
           .update({'status': status.name}) // status 값을 문자열로 변환하여 저장
           .eq('id', deviceId); // deviceId로 기기 특정
-      print('Supabase Response: $response'); // 디버깅용 출력
+      print(
+          'Supabase Response: $response , ${status.name}, $deviceId'); // 디버깅용 출력
 
       if (response == null || response.isEmpty) {
         throw Exception('Failed to update status for device $deviceId');
@@ -48,7 +49,7 @@ class SupabaseService {
     }
   }
 
-  /// 특정 기기의 남은 시간 업데이트
+  /// 기기의 남은 시간 업데이트
   Future<void> updateDeviceTime(String deviceId, int remainingTime) async {
     final response = await supabase
         .from('devices')

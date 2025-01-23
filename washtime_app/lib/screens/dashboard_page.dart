@@ -18,6 +18,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     _fetchDevices(); // 데이터를 가져오는 메서드 호출
+    setState(() {});
   }
 
   /// 기기 목록 가져오기
@@ -67,6 +68,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   // remainingTime이 0 이하이면 사용 가능으로 변경
                   device.status =
                       DeviceStatus.available; // DeviceStatus 열거형 값으로 변환
+                  print(device.status.name);
                   _supabaseService.updateDeviceStatus(
                       device.id, DeviceStatus.available);
                 }
