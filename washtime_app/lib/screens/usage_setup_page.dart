@@ -1,74 +1,85 @@
+// usage_setup_page.dart
 import 'package:flutter/material.dart';
-import 'package:washtime_app/services/supabase_service.dart';
-import '../models/device_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UsageSetupPage extends StatefulWidget {
-  final DeviceModel device;
+  final String deviceId;
 
-  const UsageSetupPage({required this.device, super.key});
+  const UsageSetupPage({super.key, required this.deviceId});
 
   @override
-  State<UsageSetupPage> createState() => _UsageSetupPageState();
+  _UsageSetupPageState createState() => _UsageSetupPageState();
 }
 
 class _UsageSetupPageState extends State<UsageSetupPage> {
-  final TextEditingController _controller = TextEditingController();
+  final SupabaseClient supabase = Supabase.instance.client;
+  int? _selectedMinutes;
 
-  @override
-  void dispose() {
-    _controller.dispose(); // 컨트롤러 메모리 해제
-    super.dispose();
+  Future<void> _startDeviceUsage() async {
+    if (_selectedMinutes == null) {
+      _showMessage('사용 시간을 선택해주세요');
+      return;
+    }
+
+    try {
+      final now = DateTime.now();
+      final endTime = now.add(Duration(minutes: _selectedMinutes!));
+
+      await supabase.from('devices').update({
+        'status': 'inUse',
+        'remainingTime': _selectedMinutes! * 60, // 초 단위로 저장
+        'startTime': now.toIso8601String(),
+        'endTime': endTime.toIso8601String(),
+      }).eq('id', widget.deviceId);
+
+      _showMessage('기기 사용이 시작되었습니다');
+      Navigator.pop(context);
+    } catch (e) {
+      _showMessage('오류 발생: $e');
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('사용 시간 설정')),
+      appBar: AppBar(
+        title: Text('기기 사용 설정 (${widget.deviceId})'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('기기 ID: ${widget.device.id}',
-                style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 16),
-            Text('기기 상태: ${widget.device.status}',
-                style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 16),
             const Text(
-              '사용 시간을 입력하세요:',
-              style: TextStyle(fontSize: 18),
+              '사용 시간을 분 단위로 설정해주세요 (최대 120분):',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            TextField(
-              controller: _controller, // 컨트롤러 연결
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(hintText: '사용 시간 (분)'),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                if (_controller.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('시간을 입력하세요!')),
-                  );
-                  return;
-                }
-
-                int usageMinutes = int.parse(_controller.text); // 입력값 가져오기
-                DateTime startTime = DateTime.now();
-                DateTime endTime =
-                    startTime.add(Duration(minutes: usageMinutes));
-
-                await SupabaseService().saveDeviceUsage(
-                  widget.device.id,
-                  usageMinutes,
-                  startTime,
-                  endTime,
-                );
-
-                Navigator.pop(context);
+            const SizedBox(height: 16.0),
+            DropdownButton<int>(
+              value: _selectedMinutes,
+              items: List.generate(120, (index) => index + 1)
+                  .map((value) => DropdownMenuItem<int>(
+                        value: value,
+                        child: Text('$value 분'),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedMinutes = value;
+                });
               },
-              child: const Text('사용 시작'),
+              hint: const Text('분 선택'),
+            ),
+            const SizedBox(height: 32.0),
+            ElevatedButton(
+              onPressed: _startDeviceUsage,
+              child: const Text('기기 사용 시작'),
             ),
           ],
         ),
