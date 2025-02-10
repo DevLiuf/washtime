@@ -108,7 +108,13 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('세탁기 현황'),
+        title: const Text(
+          '세탁기 현황',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 28,
+          ),
+        ),
         actions: [
           if (isLoading)
             const Padding(
@@ -134,10 +140,10 @@ class _DashboardPageState extends State<DashboardPage> {
                       padding: const EdgeInsets.all(16.0),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        childAspectRatio: 1,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
+                        crossAxisCount: 5, // 🔹 한 줄에 5개 배치
+                        childAspectRatio: 0.75, // 🔹 세로 길이를 가로보다 길게 조정
+                        crossAxisSpacing: 8.0, // 🔹 카드 간 가로 여백
+                        mainAxisSpacing: 8.0, // 🔹 카드 간 세로 여백
                       ),
                       itemCount: devices.length,
                       itemBuilder: (context, index) {
@@ -146,30 +152,58 @@ class _DashboardPageState extends State<DashboardPage> {
 
                         return Container(
                           decoration: BoxDecoration(
-                            color: isInUse ? Colors.red : Colors.blue,
+                            color: isInUse ? Colors.red : Colors.lightBlue,
                             borderRadius: BorderRadius.circular(8.0),
                           ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.local_laundry_service,
-                                  color: Colors.white,
-                                  size: 40.0,
-                                ),
-                                const SizedBox(height: 8.0),
-                                Text(
-                                  isInUse
-                                      ? formatTime(device['remainingTime'])
-                                      : '사용 가능',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                          padding: const EdgeInsets.all(8.0), // 🔹 내부 패딩 추가
+                          child: Column(
+                            children: [
+                              // 🔹 이름 (1 비율)
+                              Expanded(
+                                flex: 1,
+                                child: Center(
+                                  child: Text(
+                                    device['name'],
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1, // 이름이 1줄까지만 표시되도록 설정
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                              // 🔹 아이콘 (3 비율)
+                              Expanded(
+                                flex: 3,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.local_laundry_service,
+                                    color: Colors.white,
+                                    size: 40.0,
+                                  ),
+                                ),
+                              ),
+                              // 🔹 남은 시간 (1 비율)
+                              Expanded(
+                                flex: 1,
+                                child: Center(
+                                  child: Text(
+                                    isInUse
+                                        ? formatTime(device['remainingTime'])
+                                        : '사용 가능',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },
