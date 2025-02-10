@@ -39,3 +39,6 @@ Services
 Providers
 
 - 전역 상태 관리를 통해 데이터 흐름 제어.
+
+QR코드 생성
+https://www.qr-code-generator.com/

@@ -1,4 +1,3 @@
-// usage_setup_page.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,7 +32,9 @@ class _UsageSetupPageState extends State<UsageSetupPage> {
       }).eq('id', widget.deviceId);
 
       _showMessage('기기 사용이 시작되었습니다');
-      Navigator.pop(context);
+
+      // 메인 페이지로 이동
+      Navigator.popUntil(context, (route) => route.isFirst);
     } catch (e) {
       _showMessage('오류 발생: $e');
     }
@@ -50,6 +51,13 @@ class _UsageSetupPageState extends State<UsageSetupPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('기기 사용 설정 (${widget.deviceId})'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // 뒤로 가기 시 메인 페이지로 이동
+            Navigator.popUntil(context, (route) => route.isFirst);
+          },
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

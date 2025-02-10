@@ -1,4 +1,3 @@
-// qr_scanner.dart
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,9 +12,14 @@ class QrScannerPage extends StatefulWidget {
 
 class _QrScannerPageState extends State<QrScannerPage> {
   final SupabaseClient supabase = Supabase.instance.client;
+  bool _isScanned = false; // 중복 호출 방지 플래그
 
   void _onQrCodeScanned(String qrCode) async {
-    if (qrCode.isEmpty) return; // Invalid QR code
+    if (_isScanned) return; // 중복 방지
+
+    setState(() {
+      _isScanned = true; // 스캔 플래그 설정
+    });
 
     try {
       final response = await supabase
@@ -24,30 +28,55 @@ class _QrScannerPageState extends State<QrScannerPage> {
           .eq('id', qrCode)
           .maybeSingle();
 
+      if (!mounted) return;
+
       if (response == null) {
         _showMessage('없는 기기입니다');
-        Navigator.pop(context);
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) Navigator.pop(context); // 스캔 화면 종료
+        });
       } else if (response['status'] == 'inUse') {
-        _showMessage('사용중입니다');
-        Navigator.pop(context);
+        _showMessage('사용중인 기기입니다');
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) Navigator.pop(context); // 스캔 화면 종료
+        });
       } else {
+        // 사용 가능한 기기 -> UsageSetupPage로 이동
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => UsageSetupPage(deviceId: qrCode),
           ),
-        );
+        ).then((_) {
+          // UsageSetupPage에서 돌아온 경우에만 스캔 플래그 해제
+          if (mounted) {
+            setState(() {
+              _isScanned = false; // 플래그 초기화
+            });
+          }
+        });
+        return; // 화면 종료 로직 실행 안 함
       }
     } catch (e) {
-      _showMessage('QR 스캔 중 오류 발생: $e');
-      Navigator.pop(context);
+      if (mounted) _showMessage('QR 스캔 중 오류 발생: $e');
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) Navigator.pop(context); // 스캔 화면 종료
+      });
+    } finally {
+      if (mounted && !_isScanned) {
+        setState(() {
+          _isScanned = false; // 플래그 초기화
+        });
+      }
     }
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   @override
@@ -58,12 +87,14 @@ class _QrScannerPageState extends State<QrScannerPage> {
       ),
       body: MobileScanner(
         onDetect: (capture) {
-          final List<Barcode> barcodes = capture.barcodes;
-          for (final barcode in barcodes) {
-            final String? rawValue = barcode.rawValue;
-            if (rawValue != null) {
-              _onQrCodeScanned(rawValue);
-              break;
+          if (!_isScanned) {
+            final List<Barcode> barcodes = capture.barcodes;
+            for (final barcode in barcodes) {
+              final String? rawValue = barcode.rawValue;
+              if (rawValue != null) {
+                _onQrCodeScanned(rawValue);
+                break; // 한 번만 처리
+              }
             }
           }
         },

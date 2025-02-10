@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:washtime_app/screens/main_page.dart';
+import 'package:washtime_app/services/qr_scanner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,10 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       home: const MainPage(),
+      routes: {
+        // 🔹 경로 추가
+        '/qrScanner': (context) => const QrScannerPage(),
+      },
     );
   }
 }
