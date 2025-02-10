@@ -22,52 +22,63 @@ class _QrScannerPageState extends State<QrScannerPage> {
     });
 
     try {
-      final response = await supabase
+      final int deviceId = int.tryParse(qrCode) ?? -1;
+      if (deviceId == -1) {
+        _showMessage('잘못된 QR 코드입니다.');
+        return _returnToMain();
+      }
+
+      // 🔹 기기 정보 확인
+      final deviceResponse = await supabase
           .from('devices')
           .select()
-          .eq('id', qrCode)
+          .eq('id', deviceId)
           .maybeSingle();
 
       if (!mounted) return;
 
-      if (response == null) {
+      if (deviceResponse == null) {
         _showMessage('없는 기기입니다');
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) Navigator.pop(context); // 스캔 화면 종료
-        });
-      } else if (response['status'] == 'inUse') {
+        return _returnToMain();
+      }
+
+      // 🔹 작동 중인지 확인
+      final activeLog = await supabase
+          .from('operation_logs')
+          .select()
+          .eq('washerid', deviceId)
+          .gte('endtime', DateTime.now().toIso8601String())
+          .maybeSingle();
+
+      if (activeLog != null) {
         _showMessage('사용중인 기기입니다');
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) Navigator.pop(context); // 스캔 화면 종료
-        });
-      } else {
-        // 사용 가능한 기기 -> UsageSetupPage로 이동
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UsageSetupPage(deviceId: qrCode),
-          ),
-        ).then((_) {
-          // UsageSetupPage에서 돌아온 경우에만 스캔 플래그 해제
-          if (mounted) {
-            setState(() {
-              _isScanned = false; // 플래그 초기화
-            });
-          }
-        });
-        return; // 화면 종료 로직 실행 안 함
+        return _returnToMain();
       }
+
+      // 사용 가능한 기기 -> UsageSetupPage로 이동
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => UsageSetupPage(deviceId: deviceId.toString()),
+        ),
+      ).then((_) => _resetScanFlag());
     } catch (e) {
-      if (mounted) _showMessage('QR 스캔 중 오류 발생: $e');
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) Navigator.pop(context); // 스캔 화면 종료
+      _showMessage('QR 스캔 중 오류 발생: $e');
+      _returnToMain();
+    }
+  }
+
+  void _returnToMain() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) Navigator.pop(context); // 스캔 화면 종료
+    });
+  }
+
+  void _resetScanFlag() {
+    if (mounted) {
+      setState(() {
+        _isScanned = false; // 플래그 초기화
       });
-    } finally {
-      if (mounted && !_isScanned) {
-        setState(() {
-          _isScanned = false; // 플래그 초기화
-        });
-      }
     }
   }
 

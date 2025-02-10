@@ -24,12 +24,14 @@ class _UsageSetupPageState extends State<UsageSetupPage> {
       final now = DateTime.now();
       final endTime = now.add(Duration(minutes: _selectedMinutes!));
 
-      await supabase.from('devices').update({
-        'status': 'inUse',
-        'remainingTime': _selectedMinutes! * 60, // 초 단위로 저장
-        'startTime': now.toIso8601String(),
-        'endTime': endTime.toIso8601String(),
-      }).eq('id', widget.deviceId);
+      // 🔹 작동 이력 추가
+      await supabase.from('operation_logs').insert({
+        'washerid': int.parse(widget.deviceId), // deviceId를 int로 변환
+        'courseid': 1, // 기본 세탁 코스 ID (수정 가능)
+        'starttime': now.toIso8601String(),
+        'endtime': endTime.toIso8601String(),
+        'userid': 1, // 사용자의 ID (테스트 목적으로 기본값 1)
+      });
 
       _showMessage('기기 사용이 시작되었습니다');
 

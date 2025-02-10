@@ -1,7 +1,5 @@
-// dashboard_page.dart
 import 'package:flutter/material.dart';
-import 'dart:async';
-
+import 'package:washtime_app/models/device_model.dart';
 import 'package:washtime_app/services/supabase_service.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -12,203 +10,153 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  final SupabaseService supabaseService = SupabaseService();
-  List<Map<String, dynamic>> devices = [];
-  bool isLoading = true;
-  Timer? timer;
+  final SupabaseService _supabaseService = SupabaseService();
+  List<DeviceModel> _washers = [];
+  List<DeviceModel> _dryers = [];
+  List<int> _activeDeviceIds = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadDevices();
-    _startTimer();
+    _loadData(); // 앱이 열렸을 때 데이터 로드
   }
 
-  @override
-  void dispose() {
-    timer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _loadDevices() async {
+  Future<void> _loadData() async {
     setState(() {
-      isLoading = true;
+      _isLoading = true; // 로딩 상태 시작
     });
-
     try {
-      final fetchedDevices = await supabaseService.getDevices();
-      fetchedDevices.sort((a, b) => a['name'].compareTo(b['name'])); // 이름으로 정렬
+      final devices = await _supabaseService.fetchDevices();
+      final activeDeviceIds = await _supabaseService.fetchActiveDeviceIds();
+
+      final washers =
+          devices.where((device) => device.type == 'washer').toList();
+      final dryers = devices.where((device) => device.type == 'dryer').toList();
+
       setState(() {
-        devices = fetchedDevices;
-        isLoading = false;
+        _washers = washers;
+        _dryers = dryers;
+        _activeDeviceIds = activeDeviceIds;
       });
     } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      _showError('기기를 불러오는 중 오류가 발생했습니다: $e');
-    }
-  }
-
-  void _startTimer() {
-    timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final now = DateTime.now();
-      final List<Map<String, dynamic>> devicesToUpdate = [];
-
-      for (var device in devices) {
-        if (device['status'] == 'inUse') {
-          final endTime = DateTime.parse(device['endTime']);
-          final remaining = endTime.difference(now).inSeconds;
-
-          if (remaining <= 0 && device['status'] != 'available') {
-            // 업데이트가 필요한 기기를 리스트에 추가
-            devicesToUpdate.add(device);
-          } else if (remaining > 0) {
-            // 로컬 상태 갱신
-            device['remainingTime'] = remaining;
-          }
-        }
-      }
-
-      // 서버 호출: 업데이트가 필요한 기기만 처리
-      if (devicesToUpdate.isNotEmpty) {
-        _updateDevicesOnServer(devicesToUpdate);
-      }
-
-      setState(() {});
-    });
-  }
-
-  Future<void> _updateDevicesOnServer(
-      List<Map<String, dynamic>> devicesToUpdate) async {
-    for (var device in devicesToUpdate) {
-      await supabaseService.updateDevice(
-        device['id'],
-        status: 'available',
-        remainingTime: 0,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('데이터를 불러오지 못했습니다: $e')),
       );
-      device['status'] = 'available';
-      device['remainingTime'] = 0;
+    } finally {
+      setState(() {
+        _isLoading = false; // 로딩 상태 종료
+      });
     }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  String formatTime(int remainingTime) {
-    final minutes = remainingTime ~/ 60;
-    final seconds = remainingTime % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width; // 화면 너비
+    final cardWidth = (screenWidth - 64) / 5; // 한 줄에 5개, 패딩 포함
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '세탁기 현황',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 28,
-          ),
-        ),
-        actions: [
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.all(12.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
+        title: const Text('대시보드'),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator()) // 로딩 상태
+          : RefreshIndicator(
+              onRefresh: _loadData, // 새로고침 시 데이터 로드
+              child: ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  _buildDeviceSection('세탁기', _washers, cardWidth),
+                  const SizedBox(height: 16.0),
+                  _buildDeviceSection('건조기', _dryers, cardWidth),
+                ],
               ),
             ),
+    );
+  }
+
+  Widget _buildDeviceSection(
+      String title, List<DeviceModel> devices, double cardWidth) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8.0),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5, // 한 줄에 5개
+            mainAxisSpacing: 16.0,
+            crossAxisSpacing: 16.0,
+            childAspectRatio: 1, // 카드의 비율을 정사각형으로 유지
+          ),
+          itemCount: devices.length,
+          itemBuilder: (context, index) {
+            final device = devices[index];
+            final isActive = _activeDeviceIds.contains(device.id);
+
+            return _buildDeviceCard(device, isActive, cardWidth);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeviceCard(DeviceModel device, bool isActive, double cardWidth) {
+    return Container(
+      width: cardWidth,
+      height: cardWidth,
+      decoration: BoxDecoration(
+        color: isActive ? Colors.red[300] : Colors.green[300], // 상태에 따라 색상 변경
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Column(
+        children: [
+          // 1: 텍스트 비율
+          Expanded(
+            flex: 1,
+            child: Center(
+              child: Text(
+                'ID: ${device.id}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: cardWidth * 0.1, // 카드 크기에 비례한 텍스트 크기
+                ),
+                overflow: TextOverflow.ellipsis, // 텍스트 오버플로우 방지
+              ),
+            ),
+          ),
+          // 3: 아이콘 비율
+          Expanded(
+            flex: 3,
+            child: Center(
+              child: Icon(
+                device.type == 'washer'
+                    ? Icons.local_laundry_service
+                    : Icons.dry_cleaning,
+                size: cardWidth * 0.5, // 카드 크기에 비례한 아이콘 크기
+              ),
+            ),
+          ),
+          // 1: 상태/남은 시간 비율
+          Expanded(
+            flex: 1,
+            child: Center(
+              child: Text(
+                isActive ? '사용 중' : '사용 가능',
+                style: TextStyle(
+                  fontSize: cardWidth * 0.1, // 카드 크기에 비례한 텍스트 크기
+                ),
+                overflow: TextOverflow.ellipsis, // 텍스트 오버플로우 방지
+              ),
+            ),
+          ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadDevices,
-              child: devices.isEmpty
-                  ? const Center(child: Text('기기가 없습니다.'))
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16.0),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 5, // 🔹 한 줄에 5개 배치
-                        childAspectRatio: 0.75, // 🔹 세로 길이를 가로보다 길게 조정
-                        crossAxisSpacing: 8.0, // 🔹 카드 간 가로 여백
-                        mainAxisSpacing: 8.0, // 🔹 카드 간 세로 여백
-                      ),
-                      itemCount: devices.length,
-                      itemBuilder: (context, index) {
-                        final device = devices[index];
-                        final isInUse = device['status'] == 'inUse';
-
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: isInUse ? Colors.red : Colors.lightBlue,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          padding: const EdgeInsets.all(8.0), // 🔹 내부 패딩 추가
-                          child: Column(
-                            children: [
-                              // 🔹 이름 (1 비율)
-                              Expanded(
-                                flex: 1,
-                                child: Center(
-                                  child: Text(
-                                    device['name'],
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1, // 이름이 1줄까지만 표시되도록 설정
-                                  ),
-                                ),
-                              ),
-                              // 🔹 아이콘 (3 비율)
-                              Expanded(
-                                flex: 3,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.local_laundry_service,
-                                    color: Colors.white,
-                                    size: 40.0,
-                                  ),
-                                ),
-                              ),
-                              // 🔹 남은 시간 (1 비율)
-                              Expanded(
-                                flex: 1,
-                                child: Center(
-                                  child: Text(
-                                    isInUse
-                                        ? formatTime(device['remainingTime'])
-                                        : '사용 가능',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-            ),
     );
   }
 }
