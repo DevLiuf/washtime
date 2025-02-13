@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UsageSetupPage extends StatefulWidget {
@@ -20,25 +21,39 @@ class _UsageSetupPageState extends State<UsageSetupPage> {
       return;
     }
 
+    // 🔹 UUID 가져오기
+    final prefs = await SharedPreferences.getInstance();
+    final String? uuid = prefs.getString('user_uuid');
+
+    if (uuid == null) {
+      _showMessage('사용자 인증이 필요합니다.');
+      return;
+    }
+
     try {
       final now = DateTime.now();
       final endTime = now.add(Duration(minutes: _selectedMinutes!));
 
-      // 🔹 작동 이력 추가
+      // ✅ device_usage_status 업데이트
+      await supabase.from('device_usage_status').upsert({
+        'device_id': int.parse(widget.deviceId),
+        'user_id': uuid,
+        'status': 'in_use',
+        'endtime': endTime.toIso8601String(),
+      });
+
+      // ✅ operation_logs 기록
       await supabase.from('operation_logs').insert({
-        'washerid': int.parse(widget.deviceId), // deviceId를 int로 변환
-        'courseid': 1, // 기본 세탁 코스 ID (수정 가능)
+        'device_id': int.parse(widget.deviceId),
+        'user_id': uuid,
         'starttime': now.toIso8601String(),
         'endtime': endTime.toIso8601String(),
-        'userid': 1, // 사용자의 ID (테스트 목적으로 기본값 1)
       });
 
       _showMessage('기기 사용이 시작되었습니다');
-
-      // 메인 페이지로 이동
       Navigator.popUntil(context, (route) => route.isFirst);
     } catch (e) {
-      _showMessage('오류 발생: $e');
+      _showMessage('오류 발생: ${e.toString()}');
     }
   }
 
@@ -56,7 +71,6 @@ class _UsageSetupPageState extends State<UsageSetupPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            // 뒤로 가기 시 메인 페이지로 이동
             Navigator.popUntil(context, (route) => route.isFirst);
           },
         ),

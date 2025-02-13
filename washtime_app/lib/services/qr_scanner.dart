@@ -18,7 +18,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
     if (_isScanned) return; // 중복 방지
 
     setState(() {
-      _isScanned = true; // 스캔 플래그 설정
+      _isScanned = true;
     });
 
     try {
@@ -28,7 +28,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
         return _returnToMain();
       }
 
-      // 🔹 기기 정보 확인
+      // 🔹 기기 존재 여부 확인
       final deviceResponse = await supabase
           .from('devices')
           .select()
@@ -42,20 +42,21 @@ class _QrScannerPageState extends State<QrScannerPage> {
         return _returnToMain();
       }
 
-      // 🔹 작동 중인지 확인
-      final activeLog = await supabase
-          .from('operation_logs')
-          .select()
-          .eq('washerid', deviceId)
-          .gte('endtime', DateTime.now().toIso8601String())
+      // 🔹 기기 사용 가능 여부 확인 (device_usage_status 테이블 활용)
+      final activeStatus = await supabase
+          .from('device_usage_status')
+          .select('endtime')
+          .eq('device_id', deviceId)
           .maybeSingle();
 
-      if (activeLog != null) {
+      if (activeStatus != null &&
+          activeStatus['endtime'] != null &&
+          DateTime.parse(activeStatus['endtime']).isAfter(DateTime.now())) {
         _showMessage('사용중인 기기입니다');
         return _returnToMain();
       }
 
-      // 사용 가능한 기기 -> UsageSetupPage로 이동
+      // 사용 가능한 기기 -> `UsageSetupPage`로 이동
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -70,14 +71,14 @@ class _QrScannerPageState extends State<QrScannerPage> {
 
   void _returnToMain() {
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) Navigator.pop(context); // 스캔 화면 종료
+      if (mounted) Navigator.pop(context);
     });
   }
 
   void _resetScanFlag() {
     if (mounted) {
       setState(() {
-        _isScanned = false; // 플래그 초기화
+        _isScanned = false;
       });
     }
   }
@@ -93,9 +94,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('QR 스캔'),
-      ),
+      appBar: AppBar(title: const Text('QR 스캔')),
       body: MobileScanner(
         onDetect: (capture) {
           if (!_isScanned) {
