@@ -100,4 +100,20 @@ class SupabaseService {
       throw Exception('Failed to create or fetch UUID: $e');
     }
   }
+
+  // 🔹 특정 기기의 상태 조회
+  Future<String> getDeviceStatus(int deviceId) async {
+    try {
+      final response = await _client
+          .from('device_usage_status')
+          .select('status')
+          .eq('device_id', deviceId)
+          .maybeSingle();
+
+      if (response == null) return 'available';
+      return response['status'];
+    } catch (e) {
+      throw Exception('Failed to fetch device status: $e');
+    }
+  }
 }

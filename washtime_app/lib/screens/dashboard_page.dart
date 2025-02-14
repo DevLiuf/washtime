@@ -16,6 +16,7 @@ class _DashboardPageState extends State<DashboardPage> {
   List<DeviceModel> _washers = [];
   List<DeviceModel> _dryers = [];
   Map<int, Duration> _remainingTimes = {};
+  Map<int, String> _deviceStatuses = {};
   bool _isLoading = true;
   Timer? _timer;
 
@@ -38,20 +39,28 @@ class _DashboardPageState extends State<DashboardPage> {
       final usageStatus = await _supabaseService.fetchDeviceStatus();
 
       Map<int, Duration> newRemainingTimes = {};
+      Map<int, String> newDeviceStatuses = {};
       DateTime now = DateTime.now();
 
       for (var entry in usageStatus.entries) {
         int deviceId = entry.key;
         DateTime? endTime = entry.value;
-        if (endTime != null) {
-          Duration remaining = endTime.difference(now);
-          if (remaining.isNegative) {
-            newRemainingTimes[deviceId] = Duration.zero;
-            await _supabaseService.updateDeviceStatus(
-                deviceId, 'available', null);
-          } else {
-            newRemainingTimes[deviceId] = remaining;
+        String status = await _supabaseService.getDeviceStatus(deviceId);
+
+        if (status == 'unavailable') {
+          newDeviceStatuses[deviceId] = 'unavailable';
+        } else {
+          if (endTime != null) {
+            Duration remaining = endTime.difference(now);
+            if (remaining.isNegative) {
+              newRemainingTimes[deviceId] = Duration.zero;
+              await _supabaseService.updateDeviceStatus(
+                  deviceId, 'available', null);
+            } else {
+              newRemainingTimes[deviceId] = remaining;
+            }
           }
+          newDeviceStatuses[deviceId] = 'in_use';
         }
       }
 
@@ -59,6 +68,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _washers = devices.where((d) => d.type == 'washer').toList();
         _dryers = devices.where((d) => d.type == 'dryer').toList();
         _remainingTimes = newRemainingTimes;
+        _deviceStatuses = newDeviceStatuses;
       });
 
       _startTimer();
@@ -90,6 +100,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   String _formatRemainingTime(int deviceId) {
+    if (_deviceStatuses[deviceId] == 'unavailable') {
+      return '고장';
+    }
     if (!_remainingTimes.containsKey(deviceId) ||
         _remainingTimes[deviceId]!.inSeconds <= 0) {
       return '사용 가능';
@@ -101,7 +114,13 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('대시보드')),
+      appBar: AppBar(
+          title: FittedBox(
+        child: const Text(
+          'WashTime',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
+        ),
+      )),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -112,7 +131,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   _buildDeviceSection(
                       '세탁기', _washers, Icons.local_laundry_service),
                   SizedBox(height: 16.h),
-                  _buildDeviceSection('건조기', _dryers, Icons.dry),
+                  _buildDeviceSection('건조기', _dryers, Icons.dry_cleaning),
                 ],
               ),
             ),
@@ -130,9 +149,8 @@ class _DashboardPageState extends State<DashboardPage> {
         LayoutBuilder(
           builder: (context, constraints) {
             double screenWidth = constraints.maxWidth;
-            int crossAxisCount = (screenWidth / 150).floor(); // 최소 카드 크기 150px
-            crossAxisCount =
-                crossAxisCount < 5 ? 5 : crossAxisCount; // 최소 5개 유지
+            int crossAxisCount = (screenWidth / 150).floor();
+            crossAxisCount = crossAxisCount < 5 ? 5 : crossAxisCount;
 
             return GridView.builder(
               shrinkWrap: true,
@@ -163,10 +181,12 @@ class _DashboardPageState extends State<DashboardPage> {
         return Container(
           padding: EdgeInsets.all(8.w),
           decoration: BoxDecoration(
-            color: _remainingTimes[device.id] == null ||
-                    _remainingTimes[device.id]!.inSeconds <= 0
-                ? Colors.green
-                : Colors.red,
+            color: _deviceStatuses[device.id] == 'unavailable'
+                ? Colors.grey
+                : (_remainingTimes[device.id] == null ||
+                        _remainingTimes[device.id]!.inSeconds <= 0
+                    ? Colors.lightBlue
+                    : Colors.red),
             borderRadius: BorderRadius.circular(8.w),
           ),
           child: Column(
