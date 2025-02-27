@@ -5,10 +5,15 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:washtime_app/screens/main_page.dart';
 import 'package:washtime_app/screens/login_page.dart';
+import 'package:washtime_app/services/alarm_service.dart';
 import 'package:washtime_app/services/qr_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AlarmService.initialize();
+  await requestNotificationPermission(); // ✅ 알림 권한 요청 추가
+  await AlarmService.restartAlarmOnReboot(); // ✅ 앱 실행 시 알람 복구
 
   await Supabase.initialize(
     url: 'https://mrbpenlhhfclyskhbmgx.supabase.co',
@@ -55,5 +60,11 @@ class MyApp extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+Future<void> requestNotificationPermission() async {
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
   }
 }

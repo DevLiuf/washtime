@@ -15,13 +15,14 @@ class _LoginPageState extends State<LoginPage> {
   final SupabaseService _supabaseService = SupabaseService();
 
   Future<void> _login() async {
-    final String email = '${_emailController.text}@wonkwang.ac.kr';
+    final String email = '${_emailController.text}@wku.ac.kr'; // ✅ 이메일 도메인 변경
 
     try {
       final uuid = await _supabaseService.getOrCreateUUIDForUser(email);
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_uuid', uuid);
+      await prefs.setString('user_email', email); // ✅ 이메일 저장 추가
 
       if (!mounted) return;
       Navigator.pushReplacement(

@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:washtime_app/models/device_model.dart';
+import 'package:washtime_app/services/alarm_service.dart';
 
 class SupabaseService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -56,6 +57,8 @@ class SupabaseService {
         'starttime': DateTime.now().toIso8601String(),
         'endtime': endTime.toIso8601String(),
       });
+      // ✅ 5분 전 알람 예약
+      await AlarmService.setAlarmForDevice(deviceId, endTime);
     } catch (e) {
       throw Exception('Failed to start device usage: $e');
     }
@@ -114,6 +117,48 @@ class SupabaseService {
       return response['status'];
     } catch (e) {
       throw Exception('Failed to fetch device status: $e');
+    }
+  }
+
+  // ✅ 사용자가 현재 사용 중인 기기 목록 가져오기
+  Future<List<Map<String, dynamic>>> fetchUserDevices(String userId) async {
+    try {
+      final response = await _client
+          .from('device_usage_status')
+          .select('device_id, endtime')
+          .eq('user_id', userId)
+          .eq('status', 'in_use');
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      throw Exception('Failed to fetch user devices: $e');
+    }
+  }
+
+  // ✅ 사용 중인 기기 조기 종료
+  Future<void> endDeviceUsage(int deviceId) async {
+    try {
+      await _client.from('device_usage_status').update({
+        'status': 'available',
+        'endtime': null,
+      }).eq('device_id', deviceId);
+
+      await _client.from('operation_logs').update({
+        'endtime': DateTime.now().toIso8601String(),
+      }).eq('device_id', deviceId);
+      // ✅ 알람 취소
+      await AlarmService.clearAllAlarms();
+    } catch (e) {
+      throw Exception('Failed to end device usage: $e');
+    }
+  }
+
+  // ✅ 회원 탈퇴
+  Future<void> deleteUserAccount(String userId) async {
+    try {
+      await _client.from('users').delete().eq('id', userId);
+    } catch (e) {
+      throw Exception('회원 탈퇴 실패: $e');
     }
   }
 }
