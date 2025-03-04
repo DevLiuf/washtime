@@ -2,20 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 백그라운드 알림 허용 -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<!-- 알림 권한 요청 이유 -->
 	<key>NSUserNotificationUsageDescription</key>
-	<string>앱이 백그라운드에서도 알림을 받을 수 있도록 설정합니다.</string>
+	<string>세탁 종료 5분 전에 알림을 보내기 위해 사용합니다.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
-	<key>NSUserNotificationUsageDescription</key>
-	<string>앱이 종료되기 전에 알람을 받을 수 있습니다.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>QR 코드를 스캔하기 위해 카메라를 사용합니다.</string>
 	<key>NSAppTransportSecurity</key>

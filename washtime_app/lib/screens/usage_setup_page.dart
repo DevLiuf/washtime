@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:washtime_app/services/alarm_service.dart';
 
 class UsageSetupPage extends StatefulWidget {
   final String deviceId;
@@ -49,6 +50,9 @@ class _UsageSetupPageState extends State<UsageSetupPage> {
         'starttime': now.toIso8601String(),
         'endtime': endTime.toIso8601String(),
       });
+
+      // ✅ 알람 예약 추가
+      await AlarmService.setAlarmForDevice(int.parse(widget.deviceId), endTime);
 
       _showMessage('기기 사용이 시작되었습니다');
       Navigator.popUntil(context, (route) => route.isFirst);
