@@ -161,4 +161,27 @@ class SupabaseService {
       throw Exception('회원 탈퇴 실패: $e');
     }
   }
+
+  // ✅ 사용자 역할 가져오기
+  Future<String> getUserRole(String userId) async {
+    final response = await _client
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+
+    return response != null ? response['role'] : 'user';
+  }
+
+  Future<void> toggleDeviceAvailability(
+      int deviceId, bool isUnavailable) async {
+    try {
+      String status = isUnavailable ? 'unavailable' : 'available';
+      await _client.from('device_usage_status').update({
+        'status': status,
+      }).eq('device_id', deviceId);
+    } catch (e) {
+      throw Exception('Failed to toggle device availability: $e');
+    }
+  }
 }

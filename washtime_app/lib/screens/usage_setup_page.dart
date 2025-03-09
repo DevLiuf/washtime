@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:washtime_app/services/alarm_service.dart';
+import 'package:washtime_app/services/supabase_service.dart';
 
 class UsageSetupPage extends StatefulWidget {
   final String deviceId;
-
   const UsageSetupPage({super.key, required this.deviceId});
 
   @override
@@ -13,102 +12,97 @@ class UsageSetupPage extends StatefulWidget {
 }
 
 class _UsageSetupPageState extends State<UsageSetupPage> {
-  final SupabaseClient supabase = Supabase.instance.client;
-  int? _selectedMinutes;
+  bool _isUnavailable = false;
+  String _userRole = 'user';
+  bool _isLoading = false;
 
-  Future<void> _startDeviceUsage() async {
-    if (_selectedMinutes == null) {
-      _showMessage('사용 시간을 선택해주세요');
-      return;
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
 
-    // 🔹 UUID 가져오기
+  Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
     final String? uuid = prefs.getString('user_uuid');
-
-    if (uuid == null) {
-      _showMessage('사용자 인증이 필요합니다.');
-      return;
-    }
-
-    try {
-      final now = DateTime.now();
-      final endTime = now.add(Duration(minutes: _selectedMinutes!));
-
-      // ✅ device_usage_status 업데이트
-      await supabase.from('device_usage_status').upsert({
-        'device_id': int.parse(widget.deviceId),
-        'user_id': uuid,
-        'status': 'in_use',
-        'endtime': endTime.toIso8601String(),
-      });
-
-      // ✅ operation_logs 기록
-      await supabase.from('operation_logs').insert({
-        'device_id': int.parse(widget.deviceId),
-        'user_id': uuid,
-        'starttime': now.toIso8601String(),
-        'endtime': endTime.toIso8601String(),
-      });
-
-      // ✅ 알람 예약 추가
-      await AlarmService.setAlarmForDevice(int.parse(widget.deviceId), endTime);
-
-      _showMessage('기기 사용이 시작되었습니다');
-      Navigator.popUntil(context, (route) => route.isFirst);
-    } catch (e) {
-      _showMessage('오류 발생: ${e.toString()}');
+    if (uuid != null) {
+      _userRole = await SupabaseService().getUserRole(uuid);
+      _loadDeviceStatus();
     }
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+  Future<void> _loadDeviceStatus() async {
+    final status =
+        await SupabaseService().getDeviceStatus(int.parse(widget.deviceId));
+    setState(() {
+      _isUnavailable = status == 'unavailable';
+    });
+  }
+
+  Future<void> _toggleDeviceStatus(bool value) async {
+    setState(() => _isLoading = true);
+    await SupabaseService()
+        .toggleDeviceAvailability(int.parse(widget.deviceId), value);
+    setState(() {
+      _isUnavailable = value;
+      _isLoading = false;
+    });
+
+    _showIOSConfirmationDialog();
+  }
+
+  void _navigateToHome() {
+    Navigator.popUntil(context, (route) => route.isFirst);
+  }
+
+  void _showIOSConfirmationDialog() {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('변경 완료'),
+          content: const Text('기기 상태가 변경되었습니다.\n홈 화면으로 이동할까요?'),
+          actions: [
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+            CupertinoDialogAction(
+              isDestructiveAction: true,
+              onPressed: _navigateToHome,
+              child: const Text('확인'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('기기 사용 설정 (${widget.deviceId})'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.popUntil(context, (route) => route.isFirst);
-          },
-        ),
-      ),
+      appBar: AppBar(title: Text('기기 사용 설정 (${widget.deviceId})')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              '사용 시간을 분 단위로 설정해주세요 (최대 120분):',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16.0),
-            DropdownButton<int>(
-              value: _selectedMinutes,
-              items: List.generate(120, (index) => index + 1)
-                  .map((value) => DropdownMenuItem<int>(
-                        value: value,
-                        child: Text('$value 분'),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedMinutes = value;
-                });
-              },
-              hint: const Text('분 선택'),
-            ),
-            const SizedBox(height: 32.0),
-            ElevatedButton(
-              onPressed: _startDeviceUsage,
-              child: const Text('기기 사용 시작'),
-            ),
+            if (_userRole != 'admin')
+              ElevatedButton(
+                onPressed: _isLoading ? null : () {},
+                child: _isLoading
+                    ? const CupertinoActivityIndicator()
+                    : const Text('기기 사용 시작'),
+              ),
+            if (_userRole == 'admin') ...[
+              const SizedBox(height: 32),
+              SwitchListTile(
+                title: const Text('고장/점검 상태'),
+                value: _isUnavailable,
+                onChanged: _isLoading ? null : _toggleDeviceStatus,
+              ),
+            ],
           ],
         ),
       ),

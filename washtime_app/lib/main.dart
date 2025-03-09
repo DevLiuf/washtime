@@ -8,6 +8,8 @@ import 'package:washtime_app/screens/login_page.dart';
 import 'package:washtime_app/services/alarm_service.dart';
 import 'package:washtime_app/services/qr_scanner.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AlarmService.initialize();
@@ -36,9 +38,39 @@ Future<void> requestNotificationPermission() async {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final bool isLoggedIn;
   const MyApp({super.key, required this.isLoggedIn});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+
+    AlarmService.eventBus.on<AlarmEvent>().listen((event) {
+      _showGlobalDialog(event.deviceId);
+    });
+  }
+
+  void _showGlobalDialog(int deviceId) {
+    showDialog(
+      context: navigatorKey.currentContext!,
+      builder: (context) => AlertDialog(
+        title: const Text('세탁 알림'),
+        content: Text('기기 ID: $deviceId 종료 5분 전입니다!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,10 +79,11 @@ class MyApp extends StatelessWidget {
       minTextAdapt: true,
       builder: (context, child) {
         return MaterialApp(
+          navigatorKey: navigatorKey,
           debugShowCheckedModeBanner: false,
           title: 'Washtime App',
           theme: ThemeData(primarySwatch: Colors.blue),
-          initialRoute: isLoggedIn ? '/main' : '/login',
+          initialRoute: widget.isLoggedIn ? '/main' : '/login',
           routes: {
             '/main': (context) => const MainPage(),
             '/login': (context) => const LoginPage(),

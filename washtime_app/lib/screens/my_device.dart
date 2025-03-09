@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:washtime_app/services/supabase_service.dart';
+import 'package:washtime_app/services/alarm_service.dart';
 
 class MyDevicePage extends StatefulWidget {
   const MyDevicePage({super.key});
@@ -107,6 +108,7 @@ class _MyDevicePageState extends State<MyDevicePage> {
   }
 
   Future<void> _endDeviceUsage(int deviceId) async {
+    await AlarmService.cancelAlarm(deviceId);
     await _supabaseService.endDeviceUsage(deviceId);
     await _fetchMyDevices();
   }
@@ -170,7 +172,7 @@ class _MyDevicePageState extends State<MyDevicePage> {
                               _showEndDeviceDialog(device['device_id']),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
-                            minimumSize: Size(80.w, 40.h), // 반응형 버튼 크기 조정
+                            minimumSize: Size(80.w, 40.h),
                           ),
                           child: Text('사용 종료',
                               style: TextStyle(
