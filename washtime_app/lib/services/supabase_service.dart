@@ -152,23 +152,23 @@ class SupabaseService {
   }
 
   // 🔹 특정 세탁방의 기기 상태 조회 (대시보드 및 개별 세탁방 UI에서 사용)
-  Future<Map<int, DateTime?>> fetchDeviceStatusByRoom(int laundryRoomId) async {
-    try {
-      final List<dynamic> response = await _client
-          .from('device_usage_status')
-          .select(
-              'device_id, endtime, devices!inner(laundry_room_id)') // ✅ devices 테이블 조인
-          .eq('devices.laundry_room_id',
-              laundryRoomId); // ✅ Supabase에서 올바른 필터링 방식
+  Future<List<DeviceModel>> fetchDevicesWithStatus(int laundryRoomId) async {
+    final response = await _client
+        .from('devices')
+        .select('id, type, created_at, device_usage_status(endtime, status)')
+        .eq('laundry_room_id', laundryRoomId);
 
-      return {
-        for (var row in response)
-          row['device_id'] as int:
-              row['endtime'] != null ? DateTime.parse(row['endtime']) : null,
-      };
-    } catch (e) {
-      throw Exception('Failed to fetch device status by room: $e');
-    }
+    return response.map((device) {
+      return DeviceModel(
+        id: device['id'],
+        type: device['type'],
+        status: device['device_usage_status']?['status'] ?? 'available',
+        createdAt: DateTime.parse(device['created_at']), // ✅ createdAt 추가
+        endTime: device['device_usage_status']?['endtime'] != null
+            ? DateTime.parse(device['device_usage_status']['endtime'])
+            : null,
+      );
+    }).toList();
   }
 
   // 🔹 기기 사용 시작

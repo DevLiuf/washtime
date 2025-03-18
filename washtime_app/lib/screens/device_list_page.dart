@@ -42,46 +42,32 @@ class _DeviceListPageState extends State<DeviceListPage> {
 
     try {
       final devices =
-          await _supabaseService.fetchDevicesByRoom(widget.laundryRoomId);
-      final usageStatus =
-          await _supabaseService.fetchDeviceStatusByRoom(widget.laundryRoomId);
-
+          await _supabaseService.fetchDevicesWithStatus(widget.laundryRoomId);
       if (!mounted) return;
 
       Map<int, Duration> newRemainingTimes = {};
       Map<int, String> newDeviceStatuses = {};
       DateTime now = DateTime.now();
 
-      for (var entry in usageStatus.entries) {
-        int deviceId = entry.key;
-        DateTime? endTime = entry.value;
-        String status = await _supabaseService.getDeviceStatus(deviceId);
-
-        if (status == 'unavailable') {
-          newDeviceStatuses[deviceId] = 'unavailable';
-        } else {
-          if (endTime != null) {
-            Duration remaining = endTime.difference(now);
-            if (remaining.isNegative) {
-              newRemainingTimes[deviceId] = Duration.zero;
-              await _supabaseService.updateDeviceStatus(
-                  deviceId, 'available', null);
-            } else {
-              newRemainingTimes[deviceId] = remaining;
-            }
-          }
-          newDeviceStatuses[deviceId] = 'in_use';
+      for (var device in devices) {
+        if (device.endTime != null) {
+          Duration remaining = device.endTime!.difference(now);
+          newRemainingTimes[device.id] =
+              remaining.isNegative ? Duration.zero : remaining;
         }
+        newDeviceStatuses[device.id] = device.status;
       }
 
-      setState(() {
-        _washers = devices.where((d) => d.type == 'washer').toList();
-        _dryers = devices.where((d) => d.type == 'dryer').toList();
-        _remainingTimes = newRemainingTimes;
-        _deviceStatuses = newDeviceStatuses;
-      });
+      if (mounted) {
+        setState(() {
+          _washers = devices.where((d) => d.type == 'washer').toList();
+          _dryers = devices.where((d) => d.type == 'dryer').toList();
+          _remainingTimes = newRemainingTimes;
+          _deviceStatuses = newDeviceStatuses;
+        });
+      }
 
-      _startTimer();
+      _startTimer(); // ✅ 타이머 시작 (이 부분이 없으면 추가해야 함)
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
