@@ -63,3 +63,6 @@ https://www.qr-code-generator.com/
 사용시간은 120분 최대로 1분부터 선택 가능
 
 화면 구분 안된다 다시
+
+대학교 메일인증
+https://univcert.com/

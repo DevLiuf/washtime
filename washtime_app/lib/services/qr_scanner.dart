@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:washtime_app/screens/usage_setup_page.dart';
 
@@ -92,9 +93,22 @@ class _QrScannerPageState extends State<QrScannerPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _checkCameraPermission();
+  }
+
+  Future<void> _checkCameraPermission() async {
+    final status = await Permission.camera.status;
+    if (!status.isGranted) {
+      await Permission.camera.request();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('QR 스캔')),
+      appBar: AppBar(title: Text('QR 스캔')),
       body: MobileScanner(
         onDetect: (capture) {
           if (!_isScanned) {

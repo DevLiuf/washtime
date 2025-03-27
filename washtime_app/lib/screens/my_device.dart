@@ -5,6 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:washtime_app/services/supabase_service.dart';
 import 'package:washtime_app/services/alarm_service.dart';
+import 'package:washtime_app/styles/app_colors.dart';
+import 'package:washtime_app/styles/app_text_styles.dart';
 
 class MyDevicePage extends StatefulWidget {
   const MyDevicePage({super.key});
@@ -22,7 +24,7 @@ class _MyDevicePageState extends State<MyDevicePage> {
   @override
   void initState() {
     super.initState();
-    _fetchMyDevices();
+    _initializeDevices();
   }
 
   @override
@@ -31,48 +33,55 @@ class _MyDevicePageState extends State<MyDevicePage> {
     super.dispose();
   }
 
+  Future<void> _initializeDevices() async {
+    await _fetchMyDevices();
+    _startTimer();
+  }
+
   Future<void> _fetchMyDevices() async {
     final prefs = await SharedPreferences.getInstance();
     final String? userId = prefs.getString('user_uuid');
 
     if (userId == null) return;
 
-    final List<Map<String, dynamic>> devices =
-        await _supabaseService.fetchUserDevices(userId);
+    final devices = await _supabaseService.fetchUserDevices(userId);
 
     setState(() {
       _myDevices = devices;
-      _updateRemainingTimes();
     });
 
-    _startTimer();
+    _updateRemainingTimesAndFilterDevices();
   }
 
-  void _updateRemainingTimes() {
+  void _updateRemainingTimesAndFilterDevices() {
     final now = DateTime.now();
-    Map<int, Duration> updatedTimes = {};
+    final Map<int, Duration> updatedTimes = {};
+    final List<Map<String, dynamic>> activeDevices = [];
 
     for (var device in _myDevices) {
       if (device['endtime'] != null) {
-        DateTime endTime = DateTime.parse(device['endtime']);
-        Duration remaining = endTime.difference(now);
-        updatedTimes[device['device_id']] =
-            remaining.isNegative ? Duration.zero : remaining;
+        final endTime = DateTime.parse(device['endtime']);
+        final remaining = endTime.difference(now);
+        final clamped = remaining.isNegative ? Duration.zero : remaining;
+
+        if (clamped.inSeconds > 0) {
+          updatedTimes[device['device_id']] = clamped;
+          activeDevices.add(device);
+        }
       }
     }
 
     setState(() {
       _remainingTimes = updatedTimes;
+      _myDevices = activeDevices;
     });
   }
 
   void _startTimer() {
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
-        setState(() {
-          _updateRemainingTimes();
-        });
+        _updateRemainingTimesAndFilterDevices();
       }
     });
   }
@@ -115,14 +124,14 @@ class _MyDevicePageState extends State<MyDevicePage> {
 
   String _formatRemainingTime(int deviceId) {
     if (!_remainingTimes.containsKey(deviceId)) return '00:00';
-    Duration remaining = _remainingTimes[deviceId]!;
+    final remaining = _remainingTimes[deviceId]!;
     return '${remaining.inMinutes.toString().padLeft(2, '0')}:${(remaining.inSeconds % 60).toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('내 기기', style: TextStyle(fontSize: 20.sp))),
+      appBar: AppBar(title: const Text('내 기기')),
       body: Padding(
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
         child: _myDevices.isEmpty
@@ -141,14 +150,13 @@ class _MyDevicePageState extends State<MyDevicePage> {
                     margin: EdgeInsets.symmetric(vertical: 8.h),
                     padding: EdgeInsets.all(12.w),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.pastelWhite,
                       borderRadius: BorderRadius.circular(12.r),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black12,
                           blurRadius: 5.r,
-                          spreadRadius: 1.r,
-                        )
+                        ),
                       ],
                     ),
                     child: Row(
@@ -163,17 +171,18 @@ class _MyDevicePageState extends State<MyDevicePage> {
                                     fontWeight: FontWeight.bold)),
                             SizedBox(height: 5.h),
                             Text(
-                                '남은 시간: ${_formatRemainingTime(device['device_id'])}',
-                                style: TextStyle(fontSize: 14.sp)),
+                              '남은 시간: ${_formatRemainingTime(device['device_id'])}',
+                              style: AppTextStyles.caption,
+                            ),
                           ],
                         ),
                         ElevatedButton(
-                          onPressed: () =>
-                              _showEndDeviceDialog(device['device_id']),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                            backgroundColor: AppColors.errorRed,
                             minimumSize: Size(80.w, 40.h),
                           ),
+                          onPressed: () =>
+                              _showEndDeviceDialog(device['device_id']),
                           child: Text('사용 종료',
                               style: TextStyle(
                                   color: Colors.white, fontSize: 14.sp)),

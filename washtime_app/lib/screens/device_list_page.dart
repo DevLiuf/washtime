@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:washtime_app/models/device_model.dart';
 import 'package:washtime_app/services/supabase_service.dart';
+import 'package:washtime_app/styles/app_colors.dart';
+import 'package:washtime_app/styles/app_paddings.dart';
+import 'package:washtime_app/styles/app_text_styles.dart';
 
 class DeviceListPage extends StatefulWidget {
   final int laundryRoomId;
@@ -116,7 +119,7 @@ class _DeviceListPageState extends State<DeviceListPage> {
           : RefreshIndicator(
               onRefresh: _fetchDevices,
               child: ListView(
-                padding: EdgeInsets.all(16.w),
+                padding: AppPaddings.defaultPadding,
                 children: [
                   _buildDeviceSection(
                       '세탁기', _washers, Icons.local_laundry_service),
@@ -172,11 +175,11 @@ class _DeviceListPageState extends State<DeviceListPage> {
           padding: EdgeInsets.all(8.w),
           decoration: BoxDecoration(
             color: _deviceStatuses[device.id] == 'unavailable'
-                ? Colors.grey
+                ? AppColors.pastelGray
                 : (_remainingTimes[device.id] == null ||
                         _remainingTimes[device.id]!.inSeconds <= 0
-                    ? Colors.lightBlue
-                    : Colors.red),
+                    ? AppColors.pastelBlue
+                    : AppColors.pastelPink),
             borderRadius: BorderRadius.circular(8.w),
           ),
           child: Column(
@@ -187,8 +190,7 @@ class _DeviceListPageState extends State<DeviceListPage> {
                 child: FittedBox(
                   child: Text(
                     'ID: ${device.id}',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 14.sp),
+                    style: AppTextStyles.title,
                   ),
                 ),
               ),
@@ -204,10 +206,8 @@ class _DeviceListPageState extends State<DeviceListPage> {
               Flexible(
                 flex: 1,
                 child: FittedBox(
-                  child: Text(
-                    _formatRemainingTime(device.id),
-                    style: TextStyle(fontSize: 14.sp),
-                  ),
+                  child: Text(_formatRemainingTime(device.id),
+                      style: AppTextStyles.title),
                 ),
               ),
             ],

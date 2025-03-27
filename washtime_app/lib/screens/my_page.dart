@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:washtime_app/services/alarm_service.dart';
 import 'package:washtime_app/services/supabase_service.dart';
 import 'package:washtime_app/screens/login_page.dart';
+import 'package:washtime_app/styles/app_colors.dart';
+import 'package:washtime_app/styles/app_paddings.dart';
+import 'package:washtime_app/styles/app_text_styles.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -99,7 +102,7 @@ class _MyPageState extends State<MyPage> {
         if (mounted) {
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
+            MaterialPageRoute(builder: (context) => LoginPage()),
             (route) => false,
           );
         }
@@ -125,7 +128,7 @@ class _MyPageState extends State<MyPage> {
           if (mounted) {
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (context) => const LoginPage()),
+              MaterialPageRoute(builder: (context) => LoginPage()),
               (route) => false,
             );
           }
@@ -155,7 +158,7 @@ class _MyPageState extends State<MyPage> {
             SizedBox(height: 10.h),
             Text(
               '이메일: ${userEmail ?? "불러오는 중..."}',
-              style: TextStyle(fontSize: 16.sp),
+              style: AppTextStyles.body,
             ),
             SizedBox(height: 30.h),
 
@@ -163,7 +166,7 @@ class _MyPageState extends State<MyPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('사용 종료 5분 전 알람', style: TextStyle(fontSize: 16.sp)),
+                Text('사용 종료 5분 전 알람', style: AppTextStyles.body),
                 Switch(
                   value: isAlarmEnabled,
                   onChanged: _toggleAlarm,
@@ -174,7 +177,7 @@ class _MyPageState extends State<MyPage> {
 
             // 🔹 버튼을 하단에 배치 & 띄워서 배치
             Padding(
-              padding: EdgeInsets.only(bottom: 30.h), // 하단 간격 추가
+              padding: AppPaddings.bottom, // 하단 간격 추가
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -190,8 +193,8 @@ class _MyPageState extends State<MyPage> {
                   ElevatedButton(
                     onPressed: _deleteAccount,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      minimumSize: Size(140.w, 50.h), // 버튼 크기 조정
+                      backgroundColor: AppColors.errorRed,
+                      minimumSize: Size(140.w, 50.h),
                     ),
                     child: Text('회원 탈퇴',
                         style: TextStyle(color: Colors.white, fontSize: 16.sp)),

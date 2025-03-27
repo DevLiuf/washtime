@@ -7,6 +7,7 @@ import 'package:washtime_app/screens/main_page.dart';
 import 'package:washtime_app/screens/login_page.dart';
 import 'package:washtime_app/services/alarm_service.dart';
 import 'package:washtime_app/services/qr_scanner.dart';
+import 'package:washtime_app/styles/app_theme.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -82,7 +83,7 @@ class _MyAppState extends State<MyApp> {
           navigatorKey: navigatorKey,
           debugShowCheckedModeBanner: false,
           title: 'Washtime App',
-          theme: ThemeData(primarySwatch: Colors.blue),
+          theme: appTheme,
           initialRoute: widget.isLoggedIn ? '/main' : '/login',
           routes: {
             '/main': (context) => const MainPage(),
